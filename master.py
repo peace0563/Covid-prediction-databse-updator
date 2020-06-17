@@ -58,7 +58,7 @@ class covid_nineteen_predictor:
         The dataset only contains total 3 cases from January to March,
         so we are removing the data from January to 1st of March
         '''
-        total_days_consider = (date.today() - date(2020, 3, 1)).days
+        total_days_consider = (date.today() - date(2020, 4, 15)).days
 
         dataset= day_aggregated(pd.read_csv('.\\dataset\\covid_19_india.csv')[["Date","Confirmed"]]).reset_index(drop = True)
         dataset = dataset.iloc[(len(dataset)-total_days_consider):len(dataset)-1]
