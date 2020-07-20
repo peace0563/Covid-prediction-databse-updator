@@ -2,10 +2,9 @@ import pandas as pd
 from datetime import date,timedelta,datetime
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
-from os import path
-import os
 import json
 import psycopg2
+import requests
 
 class covid_nineteen_predictor:
     def __init__(self):
@@ -13,46 +12,26 @@ class covid_nineteen_predictor:
         self.pr4 = None
         self.days = None
         self.conf = None
+        self.dataset = None
         self.last_day_date_track = {}
         self.prediction_data_list = []
         
         
         
     def download_dataset(self):
-
-        #Loading the kaggle.json file that has the Kaggle API token KEY
-        with open('./kaggle.json') as f:
-            data = json.load(f)
-
-        #Setting the Key as ENV. Variable so that Kaggle can authenticate
-        os.environ['KAGGLE_USERNAME'] = data["username"]
-        os.environ['KAGGLE_KEY'] = data["key"]
-
-        #Downloading the datasets required
-        import kaggle   
-        
-        '''
-        If we import Kaggle at the top of file, 
-        it throws error of No Authentication found so we are importing here,
-        after setting all the environment variables
-        '''
-
-        kaggle.api.authenticate()
-        #Creating a directory/folder to save the dataset
-        if not os.path.exists("./dataset"):     os.mkdir("dataset") 
-        kaggle.api.dataset_download_files(dataset='sudalairajkumar/covid19-in-india/covid_19_india.csv', path=".//dataset//", unzip=True, force=True) 
-        
+        data_dicti = {}
+        response = requests.get("https://api.covid19india.org/data.json")
+        json_response = response.json()['cases_time_series']
+        for count,data in enumerate(json_response,1):
+            d_date = data["date"].split()
+            d_date[1] = d_date[1][:3]
+            d_date.append('2020')
+            data_dicti[count] = [datetime.strptime(" ".join(d_date),'%d %b %Y').date(), data["totalconfirmed"]]
+        self.dataset = pd.DataFrame.from_dict(data_dicti,orient='index', columns = ["Date","Cases"])
         
     
     def train_the_model(self):
         
-        def day_aggregated(dataset):
-            new_dataset = dataset.copy()
-            new_dataset.drop_duplicates(subset="Date", keep="first", inplace=True)
-            for i in range(0,len(new_dataset)):
-                new_dataset.iloc[i,1] = int(dataset.loc[dataset["Date"] == new_dataset.iloc[i,0] , ["Confirmed"]].sum(axis = 0, skipna = True))
-            new_dataset["Date"] = pd.to_datetime(new_dataset["Date"], dayfirst=True)
-            return new_dataset
         
         '''
         The dataset only contains total 3 cases from January to March,
@@ -60,8 +39,7 @@ class covid_nineteen_predictor:
         '''
         total_days_consider = (date.today() - date(2020, 4, 15)).days
 
-        dataset= day_aggregated(pd.read_csv('.\\dataset\\covid_19_india.csv')[["Date","Confirmed"]]).reset_index(drop = True)
-        dataset = dataset.iloc[(len(dataset)-total_days_consider):len(dataset)-1]
+        dataset = self.dataset.iloc[(len(self.dataset)-total_days_consider):len(self.dataset)]
 
         self.days= pd.DataFrame([i for i in range(1,len(dataset.iloc[:, 0:1].values)+1)])
         self.conf= dataset.iloc[:, 1].values
@@ -113,6 +91,9 @@ def execut():
     n_days = 6 #Number of Days to predict
     cnin.predict(n_days)
     cnin.inserting_predict_data_to_database()
+
+if __name__=="__main__":
+    execut()
         
 
 
