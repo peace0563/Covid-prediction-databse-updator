@@ -6,4 +6,4 @@ psycopg2==2.8.5
 requests==2.23.0
 scikit-learn==0.22.1
 scipy==1.4.1
-setuptools==40.6.2
+setuptools==65.5.1
